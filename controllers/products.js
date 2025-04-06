@@ -19,12 +19,77 @@ module.exports = {
       .limit(pageSize);
     return products;
   },
+  getSearchSuggestions: async (keyword) => {
+    try {
+      // Tạo điều kiện tìm kiếm
+      let query = {
+        isDeleted: false,
+        tenSp: { $regex: keyword, $options: "i" } // Tìm kiếm không phân biệt hoa thường
+      };
 
+      // Truy vấn chỉ lấy tên sản phẩm và giới hạn 5 kết quả
+      let suggestions = await productModel
+        .find(query, { tenSp: 1, _id: 0 }) // Chỉ lấy trường tenSp, ẩn _id
+        .limit(5);
+
+      return suggestions;
+    } catch (error) {
+      throw error;
+    }
+  },
+  queryProducts: async ({ keyword, categoryId, brandId, minPrice, maxPrice, page, pageSize }) => {
+    try {
+      // Tạo điều kiện truy vấn
+      let query = { isDeleted: false };
+
+      if (keyword) {
+        query.tenSp = { $regex: keyword, $options: "i" }; // Tìm kiếm theo tên sản phẩm (không phân biệt hoa thường)
+      }
+
+      if (categoryId) {
+        query.category = new mongoose.Types.ObjectId(categoryId); // Lọc theo categoryId
+      }
+
+      if (brandId) {
+        query.brand = new mongoose.Types.ObjectId(brandId); // Lọc theo brandId
+      }
+
+      if (minPrice != null) {
+        query.giaBan = { ...query.giaBan, $gte: minPrice }; // Lọc giá bán >= minPrice
+      }
+
+      if (maxPrice != null) {
+        query.giaBan = { ...query.giaBan, $lte: maxPrice }; // Lọc giá bán <= maxPrice
+      }
+
+      // Đếm tổng số sản phẩm phù hợp
+      const totalItems = await productModel.countDocuments(query);
+
+      // Tính tổng số trang
+      const pageCount = Math.ceil(totalItems / pageSize);
+
+      // Thực hiện truy vấn với phân trang
+      let items = await productModel
+        .find(query)
+        .populate(["category", "brand"]) // Populate category và brand
+        .skip((page - 1) * pageSize)
+        .limit(pageSize);
+
+      // Trả về kết quả
+      return {
+        items,
+        pageNumber: page,
+        pageCount,
+      };
+    } catch (error) {
+      throw error;
+    }
+  },
   getAProduct: async (id) => {
     let product = await productModel
-    .findById(id)
-    .populate(["category", "brand",  "images"]);
-  return product;
+      .findById(id)
+      .populate(["category", "brand", "images"]);
+    return product;
   },
 
   createProduct: async (body) => {
@@ -121,6 +186,18 @@ module.exports = {
         isDeleted: true,
       });
       return product;
+    } catch (error) {
+      throw error;
+    }
+  },
+  getRandomProduct: async (quantity) => {
+    try {
+      let products = await productModel.aggregate([
+        { $match: { isDeleted: false } }, // Lọc sản phẩm không bị xóa
+        { $sample: { size: quantity } }, // Lấy ngẫu nhiên số lượng sản phẩm
+        { $project: { images: 0 } }, // Loại bỏ trường images
+      ]);
+      return products;
     } catch (error) {
       throw error;
     }

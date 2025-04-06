@@ -12,7 +12,7 @@ var usersRouter = require("./routes/users");
 
 var app = express();
 
-app.listen(3298, () => {});
+// app.listen(3298, () => {});
 app.use(cors());
 
 mongoose.connect("mongodb://localhost:27017/S5");

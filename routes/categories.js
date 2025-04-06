@@ -11,8 +11,6 @@ let constants = require("../utils/constants");
 /* GET users listing. */
 router.get(
   "/",
-  check_authentication,
-  check_authorization(constants.USER_PERMISSION),
   async function (req, res, next) {
     try {
       let products = await categoryController.getAllCategory();
