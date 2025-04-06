@@ -62,7 +62,7 @@ module.exports = {
         query.giaBan = { ...query.giaBan, $lte: maxPrice }; // Lọc giá bán <= maxPrice
       }
 
-      // Đếm tổng số sản phẩm phù hợp
+      // Đếm tổng số sản phẩm phù hợp 
       const totalItems = await productModel.countDocuments(query);
 
       // Tính tổng số trang

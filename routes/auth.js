@@ -57,6 +57,7 @@ router.post(
         email: body.email,
         rolename: "user",
         fullName: body.fullName,
+        phoneNumber: body.phoneNumber,
         address: body.address,
       });
       CreateSuccessRes(

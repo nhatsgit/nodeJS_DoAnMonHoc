@@ -4,6 +4,7 @@ let bcrypt = require("bcrypt");
 let constants = require("../utils/constants");
 let fs = require("fs");
 let path = require("path");
+const { promiseHooks } = require("v8");
 module.exports = {
   getAllUsers: async function () {
     var users = await userModel
@@ -21,7 +22,7 @@ module.exports = {
     return await userModel
       .findOne({
         _id: id,
-        status: false,  
+        status: false,
       })
       .populate({
         path: "role",
@@ -60,6 +61,7 @@ module.exports = {
           fullName: body.fullName,
           avatarUrl: "/public/avatar/avatar_default.jpg",
           address: body.address,
+          promiseHooks: body.phoneNumber,
           status: false,
           role: role._id,
         });
@@ -99,7 +101,7 @@ module.exports = {
     if (!user) {
       throw new Error("Username hoac password khong dung");
     } else {
-     
+
       if (bcrypt.compareSync(password, user.passwordHash)) {
         return user._id;
       } else {

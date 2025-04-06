@@ -15,6 +15,12 @@ let userSchema = mongoose.Schema({
         required: true,
         unique: true,
     },
+    phoneNumber: {
+        type: String,
+        default: "",
+        unique: true,
+
+    },
     fullName: {
         type: String,
         default: "",
