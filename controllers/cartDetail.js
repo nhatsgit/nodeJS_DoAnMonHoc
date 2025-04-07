@@ -40,4 +40,15 @@ module.exports = {
       throw new Error(error.message);
     }
   },
+  getCartDetailByProductId: async (cartId, productId) => {
+    try {
+      return await cartDetailModel.findOne({
+        cart: cartId,
+        product: productId,
+        isDeleted: false,
+      });
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
 };

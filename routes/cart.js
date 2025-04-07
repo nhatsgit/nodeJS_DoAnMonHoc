@@ -3,11 +3,13 @@ var router = express.Router();
 let cartController = require("../controllers/cart");
 let { CreateSuccessRes } = require("../utils/responseHandler");
 let constants = require("../utils/constants");
+let productController = require("../controllers/products");
+
+let cartDetailController = require("../controllers/cartDetail");
 let {
   check_authentication,
   check_authorization,
 } = require("../utils/check_auth");
-// Get All Cart by UserId
 router.get(
   "/",
   check_authentication,
@@ -15,7 +17,6 @@ router.get(
   async (req, res, next) => {
     try {
       const user = req.user;
-      // get data by query
       let carts = await cartController.getAllCartByUserId(user._id);
       CreateSuccessRes(res, carts, 200);
     } catch (error) {
@@ -24,7 +25,6 @@ router.get(
   }
 );
 
-// Create Cart
 router.post(
   "/",
   check_authentication,
@@ -32,7 +32,6 @@ router.post(
   async (req, res, next) => {
     try {
       const user = req.user;
-      // get data by query
       let cart = await cartController.createCart({ userId: user._id });
       CreateSuccessRes(res, cart, 200);
     } catch (error) {
@@ -41,7 +40,6 @@ router.post(
   }
 );
 
-// Delete Cart
 router.delete(
   "/:id",
   check_authentication,
@@ -56,7 +54,6 @@ router.delete(
   }
 );
 
-// Update Cart
 router.put(
   "/AutoUpdate/:id",
   check_authentication,
@@ -70,6 +67,71 @@ router.put(
     }
   }
 );
+router.post(
+  "/addToCart",
+  check_authentication,
+  async (req, res, next) => {
+    try {
+      const { productId, quantity } = req.body;
 
-// Export the router
+      if (!productId || !quantity) {
+        return res.status(400).json({
+          success: false,
+          message: "Product ID and quantity are required.",
+        });
+      }
+
+      const userId = req.user._id;
+
+      let cart = await cartController.getCartByUserId(userId);
+      console.log(cart);
+      if (!cart) {
+        console.log("create" + cart);
+
+
+        cart = await cartController.createCart({ userId: userId });
+      }
+
+      const product = await productController.getAProduct(productId);
+      if (!product) {
+        return res.status(404).json({
+          success: false,
+          message: "Product not found.",
+        });
+      }
+
+
+      let cartDetail = await cartDetailController.getCartDetailByProductId(
+        cart._id,
+        productId
+      );
+      if (cartDetail) {
+
+
+        cartDetail.quanity += quantity;
+        console.log(cartDetail);
+
+        await cartDetailController.updateACartDetail(
+
+          cartDetail._id,
+          cartDetail,
+
+        )
+
+      } else {
+        await cartDetailController.createACartDetail({
+          cart: cart._id,
+          product: productId,
+          quanity: quantity,
+          price: Math.ceil(product.giaBan * (1 - product.phanTramGiam / 100)),
+        });
+      }
+
+      const updatedCart = await cartController.autoUpdateCart(cart._id);
+      CreateSuccessRes(res, updatedCart, 200);
+    } catch (error) {
+      next(error);
+    }
+  }
+);
 module.exports = router;

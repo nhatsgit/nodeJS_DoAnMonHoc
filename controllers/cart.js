@@ -2,11 +2,39 @@ const { toFormData } = require("axios");
 let cartDetailModel = require("../schemas/cartDetail");
 let cartModel = require("../schemas/cart");
 module.exports = {
-  getAllCartByUserId: async (userId) => {
-    return await cartModel.find({
+  getCartByUserId: async (userId) => {
+    return await cartModel.findOne({
       user: userId,
       isDeleted: false,
     });
+  },
+  getAllCartByUserId: async (userId) => {
+    try {
+      let cart = await cartModel.findOne({
+        user: userId,
+        isDeleted: false,
+      });
+
+      if (!cart) {
+        throw new Error("Cart not found.");
+      }
+
+      let cartDetails = await cartDetailModel.find({
+        cart: cart._id,
+        isDeleted: false,
+      }).populate({
+        path: "product",
+        select: "tenSp giaBan anhDaiDien phanTramGiam",
+      });
+
+      // Trả về giỏ hàng cùng với chi tiết giỏ hàng
+      return {
+        ...cart._doc,
+        cartDetails,
+      };
+    } catch (error) {
+      throw new Error(error.message);
+    }
   },
   createCart: async (cart) => {
     try {
@@ -62,4 +90,33 @@ module.exports = {
       throw new Error(error.message);
     }
   },
+  deleteAllCartsByUserId: async (userId) => {
+    try {
+      // Tìm tất cả các giỏ hàng của người dùng
+      let carts = await cartModel.find({
+        user: userId,
+        isDeleted: false,
+      });
+
+      if (!carts || carts.length === 0) {
+        throw new Error("No carts found for this user.");
+      }
+
+      // Đặt isDeleted = true cho tất cả các cart
+      await cartModel.updateMany(
+        { user: userId, isDeleted: false },
+        { isDeleted: true }
+      );
+
+      // Đặt isDeleted = true cho tất cả các cartDetail liên quan
+      await cartDetailModel.updateMany(
+        { cart: { $in: carts.map((cart) => cart._id) }, isDeleted: false },
+        { isDeleted: true }
+      );
+
+      return { success: true, message: "All carts and cart details deleted." };
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  }
 };

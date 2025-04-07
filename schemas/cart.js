@@ -2,9 +2,9 @@ let mongoose = require("mongoose");
 let cartSchema = mongoose.Schema(
   {
     user: {
-        type: mongoose.Types.ObjectId,
-        ref: "user",
-        required: true,
+      type: mongoose.Types.ObjectId,
+      ref: "user",
+      required: true,
     },
     createDate: {
       type: String,
@@ -26,6 +26,7 @@ let cartSchema = mongoose.Schema(
       type: Boolean,
       default: false,
     },
+
   },
   {
     timestamps: true,

@@ -8,33 +8,59 @@ module.exports = {
       let authorization = req.headers.authorization;
       if (authorization.startsWith("Bearer")) {
         let token = authorization.split(" ")[1];
-        let result = jwt.verify(token, constants.SECRET_KEY);
-        if (result.expire > Date.now()) {
-          let user = await userController.getUserByID(result.id);
-          req.user = user;
-          next();
-        } else {
-          next(Error("ban chua dang nhap"));
+        try {
+          let result = jwt.verify(token, constants.SECRET_KEY);
+          if (result.expire > Date.now()) {
+            let user = await userController.getUserByID(result.id);
+            req.user = user;
+            next();
+          } else {
+            // Token hết hạn
+            return res.status(401).json({
+              success: false,
+              message: "Token has expired. Please log in again.",
+            });
+          }
+        } catch (error) {
+          // Token không hợp lệ
+          return res.status(401).json({
+            success: false,
+            message: "Invalid token. Please log in again.",
+          });
         }
       } else {
-        next(Error("Thieu tien to: Bearer"));
+        return res.status(401).json({
+          success: false,
+          message: "Authorization header must start with 'Bearer'.",
+        });
       }
     } else {
-      next(Error("Ban thieu headers, can co authorization"));
+      return res.status(401).json({
+        success: false,
+        message: "Authorization header is missing.",
+      });
     }
   },
   check_authorization: function (roles) {
     return async function (req, res, next) {
       try {
-        let roleOfUser = req.user.role.name;
+        let roleOfUser = req.user.role.name; // Lấy role của người dùng từ req.user
         console.log(roleOfUser);
         if (roles.includes(roleOfUser)) {
-          next();
+          next(); // Người dùng có quyền, tiếp tục xử lý
         } else {
-          throw Error("ban khong co quyen");
+          // Người dùng không có quyền
+          return res.status(403).json({
+            success: false,
+            message: "You do not have permission to access this resource.",
+          });
         }
       } catch (error) {
-        next(error);
+        // Xử lý lỗi khác
+        return res.status(500).json({
+          success: false,
+          message: "An error occurred while checking authorization.",
+        });
       }
     };
   },

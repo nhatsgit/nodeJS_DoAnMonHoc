@@ -61,7 +61,7 @@ module.exports = {
           fullName: body.fullName,
           avatarUrl: "/public/avatar/avatar_default.jpg",
           address: body.address,
-          promiseHooks: body.phoneNumber,
+          phoneNumber: body.phoneNumber,
           status: false,
           role: role._id,
         });
