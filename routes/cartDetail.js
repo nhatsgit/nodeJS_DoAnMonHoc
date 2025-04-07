@@ -7,6 +7,8 @@ let {
 } = require("../utils/check_auth");
 let constants = require("../utils/constants");
 const { CreateSuccessRes } = require("../utils/responseHandler");
+let cartController = require("../controllers/cart");
+
 // Get All Cart Detail by CardId
 router.get(
   "/GetAllByCartId/:id",
@@ -63,6 +65,7 @@ router.delete(
   async (req, res, next) => {
     try {
       let data = await cartDetailController.deleteACartDetail(req.params.id);
+      await cartController.autoUpdateCart(data.cart._id);
       CreateSuccessRes(res, data, 200);
     } catch (error) {
       next(error);

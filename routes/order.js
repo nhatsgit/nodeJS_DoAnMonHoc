@@ -1,6 +1,8 @@
 var express = require("express");
 var router = express.Router();
 const orderController = require("../controllers/order");
+let { CreateErrorRes, CreateSuccessRes } = require("../utils/responseHandler");
+
 var router = express.Router();
 let {
   check_authentication,
@@ -63,6 +65,20 @@ router.put(
     }
   }
 );
-
+router.post(
+  "/createOrderFromCart",
+  check_authentication,
+  check_authorization(constants.USER_PERMISSION),
+  async (req, res, next) => {
+    try {
+      let userId = req.user._id;
+      let orderData = req.body;
+      let newOrder = await orderController.createOrderFromCart(userId, orderData);
+      CreateSuccessRes(res, newOrder, 200);
+    } catch (error) {
+      next(error);
+    }
+  }
+);
 // export the router
 module.exports = router;
