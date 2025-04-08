@@ -85,6 +85,54 @@ module.exports = {
       throw error;
     }
   },
+  queryProductsDeleted: async ({ keyword, categoryId, brandId, minPrice, maxPrice, page, pageSize }) => {
+    try {
+      // Tạo điều kiện truy vấn
+      let query = { isDeleted: true };
+
+      if (keyword) {
+        query.tenSp = { $regex: keyword, $options: "i" }; // Tìm kiếm theo tên sản phẩm (không phân biệt hoa thường)
+      }
+
+      if (categoryId) {
+        query.category = new mongoose.Types.ObjectId(categoryId); // Lọc theo categoryId
+      }
+
+      if (brandId) {
+        query.brand = new mongoose.Types.ObjectId(brandId); // Lọc theo brandId
+      }
+
+      if (minPrice != null) {
+        query.giaBan = { ...query.giaBan, $gte: minPrice }; // Lọc giá bán >= minPrice
+      }
+
+      if (maxPrice != null) {
+        query.giaBan = { ...query.giaBan, $lte: maxPrice }; // Lọc giá bán <= maxPrice
+      }
+
+      // Đếm tổng số sản phẩm phù hợp 
+      const totalItems = await productModel.countDocuments(query);
+
+      // Tính tổng số trang
+      const pageCount = Math.ceil(totalItems / pageSize);
+
+      // Thực hiện truy vấn với phân trang
+      let items = await productModel
+        .find(query)
+        .populate(["category", "brand"]) // Populate category và brand
+        .skip((page - 1) * pageSize)
+        .limit(pageSize);
+
+      // Trả về kết quả
+      return {
+        items,
+        pageNumber: page,
+        pageCount,
+      };
+    } catch (error) {
+      throw error;
+    }
+  },
   getAProduct: async (id) => {
     let product = await productModel
       .findById(id)
@@ -94,19 +142,17 @@ module.exports = {
 
   createProduct: async (body) => {
     try {
-      console.log("New product");
       const [brand, category] = await Promise.all([
         brandModel.findOne({ isDeleted: false, tenLoai: body.brand }),
         categoryModel.findOne({ isDeleted: false, tenLoai: body.category }),
       ]);
-
       let newProduct = new productModel();
-      newProduct.tenSp = body.tenSp;
-      newProduct.giaBan = parseInt(body.giaBan, 10);
-      newProduct.giaNhap = parseInt(body.giaNhap, 10);
-      newProduct.moTa = body.moTa;
+      newProduct.tenSp = body.TenSp;
+      newProduct.giaBan = parseInt(body.GiaBan, 10);
+      newProduct.giaNhap = parseInt(body.GiaNhap, 10);
+      newProduct.moTa = body.MoTa;
       newProduct.anhDaiDien = body.anhDaiDien;
-      newProduct.soLuongCon = parseInt(body.soLuongCon, 10);
+      newProduct.soLuongCon = parseInt(body.SoLuongCon, 10);
       newProduct.category = category._id;
       newProduct.brand = brand._id;
 

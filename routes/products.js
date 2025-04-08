@@ -46,6 +46,64 @@ router.get("/query", async function (req, res, next) {
     CreateErrorRes(res, error.message || "Internal Server Error", 500);
   }
 });
+router.get("/queryForShop", check_authentication,
+  check_authorization(constants.MOD_PERMISSION), async function (req, res, next) {
+    try {
+      const {
+        keyword,
+        categoryId,
+        brandId,
+        minPrice,
+        maxPrice,
+        page = 1,
+        pageSize = 10,
+      } = req.query;
+
+      let products = await productController.queryProducts({
+        keyword,
+        categoryId,
+        brandId,
+        minPrice: minPrice ? parseFloat(minPrice) : null,
+        maxPrice: maxPrice ? parseFloat(maxPrice) : null,
+        page: parseInt(page, 10),
+        pageSize: parseInt(pageSize, 10),
+      });
+
+      CreateSuccessRes(res, products, 200);
+    } catch (error) {
+      console.error(error); // Ghi log lỗi để kiểm tra
+      CreateErrorRes(res, error.message || "Internal Server Error", 500);
+    }
+  });
+router.get("/deleted", check_authentication,
+  check_authorization(constants.MOD_PERMISSION), async function (req, res, next) {
+    try {
+      const {
+        keyword,
+        categoryId,
+        brandId,
+        minPrice,
+        maxPrice,
+        page = 1,
+        pageSize = 10,
+      } = req.query;
+
+      let products = await productController.queryProductsDeleted({
+        keyword,
+        categoryId,
+        brandId,
+        minPrice: minPrice ? parseFloat(minPrice) : null,
+        maxPrice: maxPrice ? parseFloat(maxPrice) : null,
+        page: parseInt(page, 10),
+        pageSize: parseInt(pageSize, 10),
+      });
+
+      CreateSuccessRes(res, products, 200);
+    } catch (error) {
+      console.error(error); // Ghi log lỗi để kiểm tra
+      CreateErrorRes(res, error.message || "Internal Server Error", 500);
+    }
+  });
 router.get("/searchSuggestions", async function (req, res, next) {
   try {
     const { keyword } = req.query;
@@ -122,22 +180,37 @@ router.post(
   "/",
   check_authentication,
   check_authorization(constants.ADMIN_PERMISSION),
-  upload.array("images", 10),
+  upload.fields([
+    { name: "AnhDaiDien", maxCount: 1 }, // Nhận 1 file cho ảnh đại diện
+    { name: "Images", maxCount: 10 },   // Nhận tối đa 10 file cho ảnh bổ sung
+  ]),
   async (req, res, next) => {
     try {
+
       const files = req.files;
-      if (!files || files.length === 0) {
+
+      if (!files || (!files.AnhDaiDien && !files.Images)) {
         throw new Error("Không tìm thấy file ảnh nào!");
       }
 
-      const fileUrls = files.map((file) => ({
-        path: `/public/product/${file.filename}`,
-      }));
+      // Lấy đường dẫn của ảnh đại diện
+      const mainImage = files.AnhDaiDien
+        ? `/public/product/${files.AnhDaiDien[0].filename}`
+        : null;
+
+      // Lấy đường dẫn của các ảnh bổ sung
+      const additionalImages = files.Images
+        ? files.Images.map((file) => ({
+          path: `/public/product/${file.filename}`,
+        }))
+        : [];
 
       let body = req.body;
-      body.images = fileUrls;
-      body.anhDaiDien = fileUrls[0].path;
-      body.user = req.user;
+
+      body.anhDaiDien = mainImage; // Gán ảnh đại diện
+      body.images = additionalImages; // Gán danh sách ảnh bổ sung
+
+      // Gọi controller để tạo sản phẩm
       let result = await productController.createProduct(body);
 
       CreateSuccessRes(res, result, 200);
@@ -150,22 +223,32 @@ router.put(
   "/:id",
   check_authentication,
   check_authorization(constants.MOD_PERMISSION),
-  upload.array("images", 10),
+  upload.fields([
+    { name: "AnhDaiDien", maxCount: 1 }, // Nhận 1 file cho ảnh đại diện
+    { name: "listImages", maxCount: 10 }, // Nhận tối đa 10 file cho ảnh bổ sung
+  ]),
   async function (req, res, next) {
     try {
       const files = req.files;
       const id = req.params.id;
       let body = req.body;
-      if (files.length != 0) {
-        const fileUrls = files.map((file) => ({
+
+      // Xử lý ảnh đại diện
+      if (files.AnhDaiDien && files.AnhDaiDien.length > 0) {
+        body.anhDaiDien = `/public/product/${files.AnhDaiDien[0].filename}`;
+      }
+
+      // Xử lý danh sách ảnh bổ sung
+      if (files.listImages && files.listImages.length > 0) {
+        const fileUrls = files.listImages.map((file) => ({
           path: `/public/product/${file.filename}`,
         }));
         body.images = fileUrls;
-        body.anhDaiDien = fileUrls[0].path;
       }
-      body.user = req.user;
-      console.log(body);
+
+      // Gọi controller để cập nhật sản phẩm
       let result = await productController.updateProduct(id, body);
+
       CreateSuccessRes(res, result, 200);
     } catch (error) {
       next(error);
