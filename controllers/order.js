@@ -11,22 +11,92 @@ module.exports = {
         user: userId,
         isDeleted: false,
       })
-      .populate({
-        path: "orderDetail",
-      });
-    return orders;
+      .populate("orderStatus")
+      .populate("payment");
+
+    if (!orders || orders.length === 0) {
+      throw new Error("No orders found for this user.");
+    }
+
+    // Lấy orderDetails cho từng order
+    const ordersWithDetails = await Promise.all(
+      orders.map(async (order) => {
+        let orderDetails = await orderDetailModel
+          .find({
+            order: order._id,
+            isDeleted: false,
+          })
+          .populate({
+            path: "product",
+            select: "tenSp giaBan anhDaiDien", // Chỉ lấy các trường cần thiết từ product
+          });
+
+        return {
+          ...order._doc, // Thông tin order
+          orderDetails,  // Thêm danh sách orderDetails
+        };
+      })
+    );
+
+    return ordersWithDetails;
   },
 
-  getOrderByOrderId: async (orderId) => {
+  getOrderByOrderIdAndUserId: async (orderId, userId) => {
+    let order = await orderModel
+      .findOne({
+        _id: orderId,
+        user: userId,
+        isDeleted: false,
+      })
+      .populate("orderStatus")
+      .populate("payment");
+
+    if (!order) {
+      throw new Error("Order not found.");
+    }
+
+    let orderDetails = await orderDetailModel
+      .find({
+        order: orderId,
+        isDeleted: false,
+      })
+      .populate({
+        path: "product",
+        select: "tenSp giaBan anhDaiDien",
+      });
+
+    return {
+      ...order._doc,
+      orderDetails,
+    };
+  },
+  getOrderByOrderId: async (orderId, userId) => {
     let order = await orderModel
       .findOne({
         _id: orderId,
         isDeleted: false,
       })
+      .populate("orderStatus")
+      .populate("payment");
+
+    if (!order) {
+      throw new Error("Order not found.");
+    }
+
+    let orderDetails = await orderDetailModel
+      .find({
+        order: orderId,
+        isDeleted: false,
+      })
       .populate({
-        path: "orderDetail",
+        path: "product",
+        select: "tenSp giaBan anhDaiDien",
       });
-    return order;
+
+    return {
+      ...order._doc,
+      orderDetails,
+    };
   },
 
   createOrder: async (order) => {

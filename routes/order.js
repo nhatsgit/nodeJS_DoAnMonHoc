@@ -11,26 +11,39 @@ let {
 let constants = require("../utils/constants");
 
 /* GET users listing. */
-router.get("/getAllOrderByUserId/:userId", async (req, res, next) => {
-  try {
-    let userId = req.params.userId;
-    let orders = await orderController.GetAllOrder();
-    CreateSuccessRes(res, orders, 200);
-  } catch (error) {
-    next(error);
-  }
-});
+router.get("/getAllOrderByUser", check_authentication,
+  check_authorization(constants.USER_PERMISSION), async (req, res, next) => {
+    try {
+      const userId = req.user._id;
+      let orders = await orderController.getAllOrderByUserId(userId);
+      CreateSuccessRes(res, orders, 200);
+    } catch (error) {
+      next(error);
+    }
+  });
 
 // Get detail order by orderId
-router.get("/getOrderByOrderId/:orderId", async (req, res, next) => {
-  try {
-    let orderId = req.params.orderId;
-    let order = await orderController.getOrderByOrderId(orderId);
-    CreateSuccessRes(res, order, 200);
-  } catch (error) {
-    next(error);
-  }
-});
+router.get("/getMyOrderByOrderId/:orderId", check_authentication,
+  check_authorization(constants.USER_PERMISSION), async (req, res, next) => {
+    try {
+      let orderId = req.params.orderId;
+      const userId = req.user._id;
+      let order = await orderController.getOrderByOrderIdAndUserId(orderId, userId);
+      CreateSuccessRes(res, order, 200);
+    } catch (error) {
+      next(error);
+    }
+  });
+router.get("/getOrderByOrderId/:orderId", check_authentication,
+  check_authorization(constants.ADMIN_PERMISSION), async (req, res, next) => {
+    try {
+      let orderId = req.params.orderId;
+      let order = await orderController.getOrderByOrderId(orderId);
+      CreateSuccessRes(res, order, 200);
+    } catch (error) {
+      next(error);
+    }
+  });
 
 // Create order
 router.post(

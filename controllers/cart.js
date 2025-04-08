@@ -1,6 +1,9 @@
 const { toFormData } = require("axios");
 let cartDetailModel = require("../schemas/cartDetail");
 let cartModel = require("../schemas/cart");
+let productController = require("../controllers/products");
+let cartDetailController = require("../controllers/cartDetail");
+
 module.exports = {
   getCartByUserId: async (userId) => {
     return await cartModel.findOne({
@@ -79,7 +82,48 @@ module.exports = {
       throw new Error(error.message);
     }
   },
+  addToCart: async (userId, productId, quantity) => {
+    if (!productId || !quantity) {
+      throw new Error("Product ID and quantity are required.");
+    }
 
+    let cart = await cartModel.findOne({ user: userId, isDeleted: false });
+
+    if (!cart) {
+      cart = await cartModel.create({
+        user: userId,
+        createDate: new Date().toUTCString(),
+        updateDate: new Date().toUTCString(),
+        totalPrice: 0,
+        totalQuanity: 0,
+      });
+    }
+
+    const product = await productController.getAProduct(productId);
+    if (!product) {
+      throw new Error("Product not found.");
+    }
+
+    let cartDetail = await cartDetailController.getCartDetailByProductId(
+      cart._id,
+      productId
+    );
+
+    if (cartDetail) {
+      cartDetail.quanity += quantity;
+      await cartDetailController.updateACartDetail(cartDetail._id, cartDetail);
+    } else {
+      await cartDetailController.createACartDetail({
+        cart: cart._id,
+        product: productId,
+        quanity: quantity,
+        price: Math.ceil(product.giaBan * (1 - product.phanTramGiam / 100)),
+      });
+    }
+    const updatedCart = await module.exports.autoUpdateCart(cart._id);
+    console.log(updatedCart);
+    return updatedCart;
+  },
   deleteCart: async (id) => {
     try {
       // soft delete
