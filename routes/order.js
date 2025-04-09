@@ -93,5 +93,36 @@ router.post(
     }
   }
 );
+router.get(
+  "/getAllOrders",
+  check_authentication,
+  check_authorization(constants.ADMIN_PERMISSION),
+  async (req, res, next) => {
+    try {
+      const date = req.params.date; // Lấy ngày từ query string
+      let orders = await orderController.getAllOrders(date);
+      CreateSuccessRes(res, orders, 200);
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+router.put(
+  "/updateOrderStatus",
+  check_authentication,
+  check_authorization(constants.MOD_PERMISSION), // Chỉ  có quyền cập nhật trạng thái
+  async (req, res, next) => {
+    try {
+      const orderId = req.query.orderId;
+      console.log(orderId);
+      // Gọi controller để cập nhật trạng thái đơn hàng
+      const updatedOrder = await orderController.updateOrderStatus(orderId);
+
+      CreateSuccessRes(res, updatedOrder, 200);
+    } catch (error) {
+      next(error);
+    }
+  }
+);
 // export the router
 module.exports = router;

@@ -40,7 +40,59 @@ module.exports = {
 
     return ordersWithDetails;
   },
+  getAllOrders: async (date) => {
+    try {
+      let filter = { isDeleted: false };
 
+      // Nếu có truyền ngày, thêm điều kiện lọc theo ngày
+      if (date) {
+        const startOfDay = new Date(date);
+        startOfDay.setHours(0, 0, 0, 0); // Đặt thời gian bắt đầu của ngày
+        const endOfDay = new Date(date);
+        endOfDay.setHours(23, 59, 59, 999); // Đặt thời gian kết thúc của ngày
+
+        filter.orderDate = { $gte: startOfDay.toUTCString(), $lte: endOfDay.toUTCString() };
+      }
+
+      // Lấy danh sách đơn hàng
+      let orders = await orderModel
+        .find(filter)
+        .populate("orderStatus")
+        .populate("payment")
+        .populate({
+          path: "user",
+          select: "name email", // Chỉ lấy các trường cần thiết từ user
+        });
+
+      if (!orders || orders.length === 0) {
+        throw new Error("No orders found.");
+      }
+
+      // Lấy orderDetails cho từng order
+      const ordersWithDetails = await Promise.all(
+        orders.map(async (order) => {
+          let orderDetails = await orderDetailModel
+            .find({
+              order: order._id,
+              isDeleted: false,
+            })
+            .populate({
+              path: "product",
+              select: "tenSp giaBan anhDaiDien", // Chỉ lấy các trường cần thiết từ product
+            });
+
+          return {
+            ...order._doc, // Thông tin order
+            orderDetails,  // Thêm danh sách orderDetails
+          };
+        })
+      );
+
+      return ordersWithDetails;
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
   getOrderByOrderIdAndUserId: async (orderId, userId) => {
     let order = await orderModel
       .findOne({
@@ -77,6 +129,7 @@ module.exports = {
         isDeleted: false,
       })
       .populate("orderStatus")
+      .populate("user")
       .populate("payment");
 
     if (!order) {
@@ -98,7 +151,47 @@ module.exports = {
       orderDetails,
     };
   },
+  updateOrderStatus: async (orderId) => {
+    try {
+      // Lấy thông tin đơn hàng hiện tại
+      let order = await orderModel.findOne({
+        _id: orderId,
+        isDeleted: false,
+      });
 
+      if (!order) {
+        throw new Error("Order not found.");
+      }
+
+      // Lấy danh sách trạng thái đơn hàng
+      const orderStatuses = await orderStatusModel.find({ isDeleted: false }).sort({ createdAt: 1 });
+
+      // Tìm trạng thái hiện tại của đơn hàng
+      const currentStatusIndex = orderStatuses.findIndex(
+        (status) => status._id.toString() === order.orderStatus.toString()
+      );
+
+      if (currentStatusIndex === -1) {
+        throw new Error("Current order status not found in the list.");
+      }
+
+      // Kiểm tra nếu trạng thái hiện tại là trạng thái cuối cùng
+      if (currentStatusIndex === orderStatuses.length - 1) {
+        throw new Error("Order is already in the final status.");
+      }
+
+      // Cập nhật trạng thái đơn hàng sang trạng thái tiếp theo
+      const nextStatus = orderStatuses[currentStatusIndex + 1];
+      order.orderStatus = nextStatus._id;
+
+      // Lưu lại đơn hàng
+      const updatedOrder = await order.save();
+
+      return updatedOrder;
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
   createOrder: async (order) => {
     const [payment, orderStatus] = await Promise.all([
       paymentModel.findOne({
